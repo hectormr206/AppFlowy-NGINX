@@ -7,18 +7,18 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
-# Define upstream services using environment variables.
-# These will be substituted by the start.sh script.
-# Make sure these variables are set in your Nginx service on Railway.
-set $appflowy_backend "http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT}";
-set $gotrue_backend  "http://${GOTRUE_BACKEND_HOST}:${GOTRUE_BACKEND_PORT}";
-set $minio_backend   "http://${MINIO_HOST}:${MINIO_PORT}";
-set $minio_api_backend "http://${MINIO_API_HOST}:${MINIO_API_PORT}";
-
-# This variable should be the public URL of your AppFlowy-Web service
-set $cors_origin "${CORS_ORIGIN}";
-
 server {
+    # Define upstream services using environment variables.
+    # These will be substituted by the start.sh script.
+    # Make sure these variables are set in your Nginx service on Railway.
+    set $appflowy_backend "http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT}";
+    set $gotrue_backend  "http://${GOTRUE_BACKEND_HOST}:${GOTRUE_BACKEND_PORT}";
+    set $minio_backend   "http://${MINIO_HOST}:${MINIO_PORT}";
+    set $minio_api_backend "http://${MINIO_API_HOST}:${MINIO_API_PORT}";
+
+    # This variable should be the public URL of your AppFlowy-Web service
+    set $cors_origin "${CORS_ORIGIN}";
+
     # Railway provides the PORT environment variable. Nginx will listen on this port internally.
     # Railway's gateway will handle external ports 80 and 443.
     listen 80;
