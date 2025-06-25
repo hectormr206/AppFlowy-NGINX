@@ -24,11 +24,9 @@ server {
     listen 80;
     client_max_body_size 10M;
 
-    # --- AÑADIR ESTA LÍNEA ---
     # This tells Nginx to use Docker's internal DNS to find other services.
-    # It's CRUCIAL for resolving names like 'gotrue.railway.internal'.
-    resolver 127.0.0.11 valid=30s;
-    # -------------------------
+    # The ipv6=off is sometimes necessary in environments like Railway.
+    resolver 127.0.0.11 [::1]:53 valid=30s;
 
     # --- GoTrue Authentication Service ---
     location /gotrue/ {
