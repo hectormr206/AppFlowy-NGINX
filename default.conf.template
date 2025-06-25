@@ -7,30 +7,18 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
+# This variable should be the public URL of your AppFlowy-Web service
+# set in the Nginx service's environment variables.
+set $cors_origin "${CORS_ORIGIN}";
+
 server {
-    # Define upstream services using environment variables.
-    # These will be substituted by the start.sh script.
-    # Make sure these variables are set in your Nginx service on Railway.
-    set $appflowy_backend "http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT}";
-    set $gotrue_backend  "http://${GOTRUE_BACKEND_HOST}:${GOTRUE_BACKEND_PORT}";
-    set $minio_backend   "http://${MINIO_PRIVATE_HOST}:${MINIO_PRIVATE_PORT}";
-    set $minio_api_backend "http://${MINIO_API_HOST}:${MINIO_API_PORT}";
-
-    # This variable should be the public URL of your AppFlowy-Web service
-    set $cors_origin "${CORS_ORIGIN}";
-
-    # Railway provides the PORT environment variable. Nginx will listen on this port internally.
-    # Railway's gateway will handle external ports 80 and 443.
+    # Railway provides the PORT env var. Nginx will listen on this port internally.
+    # Railway's gateway handles external ports 80 and 443.
     listen 80;
     client_max_body_size 10M;
 
-    # This tells Nginx to use Docker's internal DNS to find other services.
-    # The ipv6=off is sometimes necessary in environments like Railway.
-    resolver 127.0.0.11 valid=30s ipv6=off;
-
     # --- GoTrue Authentication Service ---
     location /gotrue/ {
-        # Handle CORS preflight requests
         if ($request_method = 'OPTIONS') {
             add_header 'Access-Control-Allow-Origin' $cors_origin always;
             add_header 'Access-Control-Allow-Credentials' 'true' always;
@@ -38,23 +26,21 @@ server {
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
             return 204;
         }
-
         rewrite ^/gotrue(/.*)$ $1 break;
         
-        proxy_pass $gotrue_backend;
+        # The variables here are substituted by start.sh on container startup.
+        # This avoids runtime DNS resolution issues within Nginx.
+        proxy_pass http://${GOTRUE_BACKEND_HOST}:${GOTRUE_BACKEND_PORT};
         proxy_set_header Host $http_host;
         proxy_pass_request_headers on;
-
-        # Add CORS headers for actual requests
         add_header 'Access-Control-Allow-Origin' $cors_origin always;
         add_header 'Access-Control-Allow-Credentials' 'true' always;
     }
 
     # --- Minio UI Console ---
-    # This is for accessing the Minio web interface, if needed.
     location /minio/ {
         rewrite ^/minio/(.*) /$1 break;
-        proxy_pass $minio_backend;
+        proxy_pass http://${MINIO_HOST}:${MINIO_PORT};
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -62,29 +48,26 @@ server {
     }
 
     # --- Minio S3 API ---
-    # This is for the pre-signed URLs used by the AppFlowy client.
     location /minio-api/ {
         rewrite ^/minio-api/(.*) /$1 break;
-        proxy_pass $minio_api_backend;
-        # The presigned URL is signed against the internal Minio host.
+        proxy_pass http://${MINIO_API_HOST}:${MINIO_API_PORT};
         proxy_set_header Host "${MINIO_API_HOST}:${MINIO_API_PORT}";
         proxy_set_header X-Real-IP $remote_addr;
     }
     
     # --- WebSocket for Real-time Collaboration ---
     location /ws {
-        proxy_pass $appflowy_backend;
+        proxy_pass http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
-        proxy_read_timeout 86400s; # Keep connection open for a day
+        proxy_read_timeout 86400s;
     }
 
     # --- AppFlowy Cloud Backend (API) ---
-    # This is the catch-all location for all other API requests.
     location / {
-        proxy_pass $appflowy_backend;
+        proxy_pass http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
