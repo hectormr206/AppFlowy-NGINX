@@ -13,7 +13,7 @@ server {
     # Make sure these variables are set in your Nginx service on Railway.
     set $appflowy_backend "http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT}";
     set $gotrue_backend  "http://${GOTRUE_BACKEND_HOST}:${GOTRUE_BACKEND_PORT}";
-    set $minio_backend   "http://${MINIO_HOST}:${MINIO_PORT}";
+    set $minio_backend   "http://${MINIO_PRIVATE_HOST}:${MINIO_PRIVATE_PORT}";
     set $minio_api_backend "http://${MINIO_API_HOST}:${MINIO_API_PORT}";
 
     # This variable should be the public URL of your AppFlowy-Web service
