@@ -1,49 +1,88 @@
 #!/bin/sh
 
-# This script dynamically finds the IPv4 addresses of the upstream services,
-# substitutes them into the nginx template, and then starts the server.
-# This is a robust workaround for environments with unreliable IPv6 routing
-# and ensures we only use the first returned IP address.
+# Salimos inmediatamente si un comando falla.
+set -e
 
-# Function to resolve a hostname to a single IPv4 with retries.
-# It only outputs the final IP address.
+# ==============================================================================
+# Función para resolver la IP de un servicio.
+# Es muy robusta y muestra mucha información de depuración.
+# ==============================================================================
 resolve_ipv4() {
-    local hostname=$1
-    local resolved_ip=""
-    local retries=5
-    local count=0
+    hostname=$1
+    echo "[debug] Resolviendo IPv4 para '$hostname'..." >&2
 
-    # This loop will run until an IP is found or it runs out of retries.
-    while [ -z "${resolved_ip}" ] && [ ${count} -lt ${retries} ]; do
-        # We pipe to `head -n 1` to ensure we only get ONE IP address,
-        # even if DNS returns multiple for load balancing.
-        resolved_ip=$(dig +short A ${hostname} | head -n 1)
-        if [ -z "${resolved_ip}" ]; then
-            count=$((count+1))
-            # Wait 2 seconds before retrying.
-            sleep 2
-        fi
-    done
+    # Usamos 'dig' para obtener la IP, tomamos la primera y la limpiamos
+    # de cualquier espacio en blanco o carácter invisible.
+    ip=$(dig +short A "$hostname" | head -n 1 | tr -d ' \r\n')
 
-    # If no IP was found after all retries, exit with an error.
-    if [ -z "${resolved_ip}" ]; then
-        echo "CRITICAL: Could not resolve ${hostname} to an IPv4 address after ${retries} attempts."
+    if [ -z "$ip" ]; then
+        echo "[error] No se pudo resolver la IP para '$hostname'. 'dig' no devolvió nada." >&2
         exit 1
     fi
-    
-    # This is the ONLY output of the function, ensuring the variable is clean.
-    echo "${resolved_ip}"
+
+    echo "[debug] Resuelto '$hostname' -> '$ip'" >&2
+    # La función solo devuelve la IP limpia.
+    echo "$ip"
 }
 
-echo "Forcing IPv4 resolution for upstream services..."
+# ==============================================================================
+# 1. Resolver las IPs
+# ==============================================================================
+echo "---"
+echo "PASO 1: Obteniendo las direcciones IP de los servicios..."
+echo "---"
 export APPFLOWY_BACKEND_HOST_IPV4=$(resolve_ipv4 ${APPFLOWY_BACKEND_HOST})
 export GOTRUE_BACKEND_HOST_IPV4=$(resolve_ipv4 ${GOTRUE_BACKEND_HOST})
-export MINIO_PRIVATE_HOST_IPV4=$(resolve_ipv4 ${MINIO_PRIVATE_HOST})
 export MINIO_API_HOST_IPV4=$(resolve_ipv4 ${MINIO_API_HOST})
-echo "All services resolved."
+echo "Direcciones IP obtenidas con éxito."
+echo ""
 
-echo "Substituting environment variables..."
-envsubst '${APPFLOWY_BACKEND_HOST_IPV4},${APPFLOWY_BACKEND_PORT},${GOTRUE_BACKEND_HOST_IPV4},${GOTRUE_BACKEND_PORT},${MINIO_PRIVATE_HOST_IPV4},${MINIO_PRIVATE_PORT},${MINIO_API_HOST_IPV4},${MINIO_API_PORT},${CORS_ORIGIN}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
+# ==============================================================================
+# 2. Verificar las variables
+# ==============================================================================
+echo "---"
+echo "PASO 2: Verificando las variables de entorno (deben contener una IP)..."
+echo "---"
+echo "APPFLOWY_BACKEND_HOST_IPV4='${APPFLOWY_BACKEND_HOST_IPV4}'"
+echo "GOTRUE_BACKEND_HOST_IPV4='${GOTRUE_BACKEND_HOST_IPV4}'"
+echo "MINIO_API_HOST_IPV4='${MINIO_API_HOST_IPV4}'"
+echo ""
 
-echo "Starting Nginx..."
+# ==============================================================================
+# 3. Generar el archivo de configuración de NGINX
+# ==============================================================================
+echo "---"
+echo "PASO 3: Creando el archivo de configuración de NGINX..."
+echo "---"
+envsubst '${APPFLOWY_BACKEND_HOST_IPV4},${APPFLOWY_BACKEND_PORT},${GOTRUE_BACKEND_HOST_IPV4},${GOTRUE_BACKEND_PORT},${MINIO_API_HOST_IPV4},${MINIO_API_PORT},${CORS_ORIGIN}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
+echo "Archivo de configuración generado."
+echo ""
+
+# ==============================================================================
+# 4. Mostrar el archivo generado para inspección manual
+# ==============================================================================
+echo "---"
+echo "PASO 4: Contenido del archivo '/etc/nginx/conf.d/default.conf' generado:"
+echo "---"
+cat /etc/nginx/conf.d/default.conf
+echo "---"
+echo ""
+
+# ==============================================================================
+# 5. Probar la configuración de NGINX
+# ==============================================================================
+echo "---"
+echo "PASO 5: Pidiéndole a NGINX que verifique el archivo de configuración..."
+echo "---"
+# 'nginx -t' prueba la configuración. Si hay un error, el script fallará aquí.
+nginx -t
+echo "¡Prueba de configuración de NGINX exitosa!"
+echo ""
+
+# ==============================================================================
+# 6. Iniciar NGINX
+# ==============================================================================
+echo "---"
+echo "PASO 6: Iniciando el servidor NGINX..."
+echo "---"
 nginx -g 'daemon off;'
