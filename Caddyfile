@@ -25,7 +25,7 @@
 	}
 
 	# --- Cabeceras Globales de CORS (Completas y Robustas) ---
-	# Caddy DEBE manejar esto para que todo el flujo funcione.
+	# Caddy es ahora el ÚNICO responsable de esto.
 	header {
 		Access-Control-Allow-Origin "{$ENV_WEB_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
