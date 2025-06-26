@@ -8,40 +8,22 @@ set -e
 # Es muy robusta y muestra mucha información de depuración.
 # ==============================================================================
 resolve_ipv4() {
-    hostname=$1
-    echo "[debug] Resolviendo IPv4 para '$hostname'..." >&2
-
-    # Usamos 'dig' para obtener la IP, tomamos la primera y la limpiamos
-    # de cualquier espacio en blanco o carácter invisible.
-    ip=$(dig +short A "$hostname" | head -n 1 | tr -d ' \r\n')
-
-    if [ -z "$ip" ]; then
-        echo "[error] No se pudo resolver la IP para '$hostname'. 'dig' no devolvió nada." >&2
-        exit 1
-    fi
-
-    echo "[debug] Resuelto '$hostname' -> '$ip'" >&2
-    # La función solo devuelve la IP limpia.
+    hostname_to_resolve=$1
+    # Usamos nslookup, que es más común que dig.
+    # Buscamos la línea "Address:", tomamos la IP, filtramos el DNS local y nos quedamos con la primera.
+    ip=$(nslookup "$hostname_to_resolve" 2>/dev/null | awk '/^Address: / { print $2 }' | grep -v '127.0.0.11' | head -n 1)
     echo "$ip"
 }
 
 # ==============================================================================
 # 1. Resolver las IPs
 # ==============================================================================
-echo "---"
-echo "PASO 1: Obteniendo las direcciones IP de los servicios..."
-echo "---"
-export APPFLOWY_BACKEND_HOST_IPV4=$(resolve_ipv4 ${APPFLOWY_BACKEND_HOST})
-export GOTRUE_BACKEND_HOST_IPV4=$(resolve_ipv4 ${GOTRUE_BACKEND_HOST})
-export MINIO_API_HOST_IPV4=$(resolve_ipv4 ${MINIO_API_HOST})
-echo "Direcciones IP obtenidas con éxito."
-echo ""
+echo "--- Iniciando NGINX con Script Robusto ---"
 
 # ==============================================================================
 # 2. Verificar las variables
 # ==============================================================================
-echo "---"
-echo "PASO 2: Verificando las variables de entorno (deben contener una IP)..."
+echo "--- PASO 2: Verificando las variables de entorno (deben contener una IP)..."
 echo "---"
 echo "APPFLOWY_BACKEND_HOST_IPV4='${APPFLOWY_BACKEND_HOST_IPV4}'"
 echo "GOTRUE_BACKEND_HOST_IPV4='${GOTRUE_BACKEND_HOST_IPV4}'"
@@ -51,11 +33,13 @@ echo ""
 # ==============================================================================
 # 3. Generar el archivo de configuración de NGINX
 # ==============================================================================
-echo "---"
-echo "PASO 3: Creando el archivo de configuración de NGINX..."
-echo "---"
+echo "[INFO] Generando la configuración de NGINX..."
 envsubst '${APPFLOWY_BACKEND_HOST_IPV4},${APPFLOWY_BACKEND_PORT},${GOTRUE_BACKEND_HOST_IPV4},${GOTRUE_BACKEND_PORT},${MINIO_API_HOST_IPV4},${MINIO_API_PORT},${CORS_ORIGIN}' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
-echo "Archivo de configuración generado."
+echo "[ÉXITO] Configuración de NGINX generada."
+echo ""
+echo "--- Configuración Generada ---"
+cat /etc/nginx/conf.d/default.conf
+echo "--------------------------"
 echo ""
 
 # ==============================================================================
@@ -71,18 +55,7 @@ echo ""
 # ==============================================================================
 # 5. Probar la configuración de NGINX
 # ==============================================================================
-echo "---"
-echo "PASO 5: Pidiéndole a NGINX que verifique el archivo de configuración..."
-echo "---"
-# 'nginx -t' prueba la configuración. Si hay un error, el script fallará aquí.
+echo "[INFO] Probando la configuración de NGINX..."
 nginx -t
-echo "¡Prueba de configuración de NGINX exitosa!"
-echo ""
-
-# ==============================================================================
-# 6. Iniciar NGINX
-# ==============================================================================
-echo "---"
-echo "PASO 6: Iniciando el servidor NGINX..."
-echo "---"
+echo "[INFO] Iniciando NGINX..."
 nginx -g 'daemon off;'
