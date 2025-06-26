@@ -32,12 +32,23 @@
 		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
 	}
 
-	# --- Cabeceras Globales (CORS) ---
-	# Añadimos las cabeceras CORS a todas las respuestas para permitir
-	# que el frontend se conecte desde un dominio diferente.
-	header {
+	# --- Cabeceras Globales de CORS (La Versión Corregida) ---
+	# Este bloque se aplica a TODAS las respuestas.
+	@cors {
+		origin {$CORS_ORIGIN}
+	}
+	header @cors {
+		# Le decimos al navegador que confiamos en el origen del frontend.
 		Access-Control-Allow-Origin "{$CORS_ORIGIN}"
+		
+		# Permitimos todos los métodos y cabeceras comunes.
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "*"
+
+		# ¡LA CLAVE! Permitimos que el navegador envíe y reciba credenciales (tokens, cookies).
+		Access-Control-Allow-Credentials "true"
+
+		# Permitimos que el frontend lea cualquier cabecera de la respuesta.
+		Access-Control-Expose-Headers "*"
 	}
 } 
