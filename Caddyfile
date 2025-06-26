@@ -4,32 +4,26 @@
 	auto_https off
 }
 
-# Escuchamos en el puerto 80 para todas las peticiones entrantes.
-# Caddy usará automáticamente las variables de entorno aquí.
-:80 {
+# La variable PORT la define Railway (la hemos puesto en 80).
+# Si no, Caddy escucharía en el 443 por defecto.
+:{$PORT} {
 	# --- Manejadores de Proxy ---
+	# Usan las variables de entorno oficiales.
+	# No se añade ninguna cabecera. Se deja que los backends lo hagan.
+	
 	handle_path /gotrue/* {
-		reverse_proxy {$GOTRUE_BACKEND_HOST}:{$GOTRUE_BACKEND_PORT}
+		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
 
 	handle_path /minio-api/* {
-		reverse_proxy {$MINIO_API_HOST}:{$MINIO_API_PORT}
+		reverse_proxy {$ENV_MINIO}:{$ENV_MINIO_PORT}
 	}
 
 	handle_path /ws {
-		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
+		reverse_proxy {$ENV_APPFLOWY_CLOUD}:{$ENV_APPFLOWY_CLOUD_PORT}
 	}
 
 	handle {
-		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
-	}
-
-	# --- Cabeceras Globales de CORS (La Versión Simple de la Plantilla) ---
-	# Añadimos solo lo más básico. Dejamos que los backends
-	# manejen las cabeceras más específicas como 'Allow-Credentials'.
-	header {
-		Access-Control-Allow-Origin "{$CORS_ORIGIN}"
-		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-		Access-Control-Allow-Headers "*"
+		reverse_proxy {$ENV_APPFLOWY_CLOUD}:{$ENV_APPFLOWY_CLOUD_PORT}
 	}
 } 
