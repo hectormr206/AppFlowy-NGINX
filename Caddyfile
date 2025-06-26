@@ -8,6 +8,10 @@
 # Si no, Caddy escucharía en el 443 por defecto.
 :{$PORT} {
 	# --- Manejadores de Proxy (usando variables oficiales) ---
+	handle_path /verify {
+		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
+	}
+
 	handle_path /gotrue/* {
 		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
