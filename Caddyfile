@@ -16,6 +16,7 @@
 
 	# REGLA 2: Manejar la API de GoTrue.
 	handle /gotrue/* {
+		uri strip_prefix /gotrue
 		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
 
