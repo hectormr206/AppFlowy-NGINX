@@ -7,48 +7,30 @@
 # Escuchamos en el puerto 80 para todas las peticiones entrantes.
 # Caddy usará automáticamente las variables de entorno aquí.
 :80 {
-	# --- GoTrue (Autenticación) ---
-	# Todas las peticiones a /gotrue/* se envían al servicio GoTrue via IPv4.
+	# --- Manejadores de Proxy ---
 	handle_path /gotrue/* {
 		reverse_proxy {$GOTRUE_BACKEND_HOST}:{$GOTRUE_BACKEND_PORT}
 	}
 
-	# --- Minio (Almacenamiento S3) ---
-	# Todas las peticiones a /minio-api/* se envían al servicio Minio via IPv4.
 	handle_path /minio-api/* {
 		reverse_proxy {$MINIO_API_HOST}:{$MINIO_API_PORT}
 	}
 
-	# --- AppFlowy (WebSocket para colaboración en tiempo real) ---
-	# Se envía al backend de AppFlowy via IPv4.
 	handle_path /ws {
 		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
 	}
 
-	# --- AppFlowy (Backend principal - por defecto) ---
-	# Todas las demás peticiones se envían al backend principal de AppFlowy via IPv4.
-	# Este debe ser el último manejador "handle".
 	handle {
 		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
 	}
 
-	# --- Cabeceras Globales de CORS (La Versión Corregida) ---
+	# --- Cabeceras Globales de CORS (Forma Simple y Robusta) ---
 	# Este bloque se aplica a TODAS las respuestas.
-	@cors {
-		origin {$CORS_ORIGIN}
-	}
-	header @cors {
-		# Le decimos al navegador que confiamos en el origen del frontend.
+	header {
 		Access-Control-Allow-Origin "{$CORS_ORIGIN}"
-		
-		# Permitimos todos los métodos y cabeceras comunes.
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "*"
-
-		# ¡LA CLAVE! Permitimos que el navegador envíe y reciba credenciales (tokens, cookies).
 		Access-Control-Allow-Credentials "true"
-
-		# Permitimos que el frontend lea cualquier cabecera de la respuesta.
 		Access-Control-Expose-Headers "*"
 	}
 } 
