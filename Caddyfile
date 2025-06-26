@@ -8,47 +8,28 @@
 # Caddy usará automáticamente las variables de entorno aquí.
 :80 {
 	# --- GoTrue (Autenticación) ---
-	# Todas las peticiones a /gotrue/* se envían al servicio GoTrue.
+	# Todas las peticiones a /gotrue/* se envían al servicio GoTrue via IPv4.
 	handle_path /gotrue/* {
-		reverse_proxy {$GOTRUE_BACKEND_HOST}:{$GOTRUE_BACKEND_PORT} {
-			transport http {
-				# Forzamos la conexión a usar IPv4 para evitar problemas de red.
-				dial_network tcp4
-			}
-		}
+		reverse_proxy tcp4/{$GOTRUE_BACKEND_HOST}:{$GOTRUE_BACKEND_PORT}
 	}
 
 	# --- Minio (Almacenamiento S3) ---
-	# Todas las peticiones a /minio-api/* se envían al servicio Minio.
+	# Todas las peticiones a /minio-api/* se envían al servicio Minio via IPv4.
 	handle_path /minio-api/* {
-		reverse_proxy {$MINIO_API_HOST}:{$MINIO_API_PORT} {
-			transport http {
-				# Forzamos la conexión a usar IPv4.
-				dial_network tcp4
-			}
-		}
+		reverse_proxy tcp4/{$MINIO_API_HOST}:{$MINIO_API_PORT}
 	}
 
 	# --- AppFlowy (WebSocket para colaboración en tiempo real) ---
+	# Se envía al backend de AppFlowy via IPv4.
 	handle_path /ws {
-		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT} {
-			transport http {
-				# Forzamos la conexión a usar IPv4.
-				dial_network tcp4
-			}
-		}
+		reverse_proxy tcp4/{$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
 	}
 
 	# --- AppFlowy (Backend principal - por defecto) ---
-	# Todas las demás peticiones se envían al backend principal de AppFlowy.
+	# Todas las demás peticiones se envían al backend principal de AppFlowy via IPv4.
 	# Este debe ser el último manejador "handle".
 	handle {
-		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT} {
-			transport http {
-				# Forzamos la conexión a usar IPv4.
-				dial_network tcp4
-			}
-		}
+		reverse_proxy tcp4/{$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
 	}
 
 	# --- Cabeceras Globales (CORS) ---
