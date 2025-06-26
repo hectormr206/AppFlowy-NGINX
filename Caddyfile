@@ -24,13 +24,12 @@
 		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
 	}
 
-	# --- Cabeceras Globales de CORS (Forma Simple y Robusta) ---
-	# Este bloque se aplica a TODAS las respuestas.
+	# --- Cabeceras Globales de CORS (La Versión Simple de la Plantilla) ---
+	# Añadimos solo lo más básico. Dejamos que los backends
+	# manejen las cabeceras más específicas como 'Allow-Credentials'.
 	header {
 		Access-Control-Allow-Origin "{$CORS_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "*"
-		Access-Control-Allow-Credentials "true"
-		Access-Control-Expose-Headers "*"
 	}
 } 
