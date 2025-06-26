@@ -7,41 +7,36 @@
 # La variable PORT la define Railway (la hemos puesto en 80).
 # Si no, Caddy escucharía en el 443 por defecto.
 :{$PORT} {
-	# Usamos 'route' para un control total y explícito.
-	route {
-		# REGLA 1: La más específica primero.
-		# Cualquier petición a /verify va a GoTrue.
-		uri /verify
+	# --- Manejadores de Proxy (Usando 'handle' para claridad) ---
+
+	# REGLA 1: Manejar la ruta de verificación.
+	handle /verify {
 		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
 
-	route {
-		# REGLA 2: Rutas de la API de GoTrue.
-		uri /gotrue/*
+	# REGLA 2: Manejar la API de GoTrue.
+	handle /gotrue/* {
 		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
 
-	route {
-		# REGLA 3: Rutas de la API de Minio.
-		uri /minio-api/*
+	# REGLA 3: Manejar la API de Minio.
+	handle /minio-api/* {
 		reverse_proxy {$ENV_MINIO}:{$ENV_MINIO_PORT}
 	}
 
-	route {
-		# REGLA 4: Rutas de WebSocket.
-		uri /ws
+	# REGLA 4: Manejar WebSockets.
+	handle /ws {
 		reverse_proxy {$ENV_APPFLOWY_CLOUD}:{$ENV_APPFLOWY_CLOUD_PORT}
 	}
 
-	# REGLA 5: La regla por defecto.
-	# Cualquier otra cosa va al backend principal.
-	# Esta SIEMPRE debe ser la última regla.
-	route {
+	# REGLA 5: La regla por defecto para el backend principal.
+	# El bloque final 'handle' sin ruta actúa como el cajón de sastre.
+	handle {
 		reverse_proxy {$ENV_APPFLOWY_CLOUD}:{$ENV_APPFLOWY_CLOUD_PORT}
 	}
 
 	# --- Cabeceras Globales de CORS ---
-	# Se aplican después de que se ha decidido la ruta.
+	# Se aplican a todas las respuestas manejadas.
 	header {
 		Access-Control-Allow-Origin "{$ENV_WEB_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
