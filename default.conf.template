@@ -30,7 +30,7 @@ server {
         
         # The environment variables are substituted here by start.sh before Nginx starts.
         # This is the only method that works in this environment.
-        proxy_pass http://${GOTRUE_BACKEND_HOST}:${GOTRUE_BACKEND_PORT};
+        proxy_pass http://${GOTRUE_BACKEND_HOST_IPV4}:${GOTRUE_BACKEND_PORT};
         proxy_set_header Host $http_host;
         proxy_pass_request_headers on;
 
@@ -42,7 +42,7 @@ server {
     # --- Minio UI Console ---
     location /minio/ {
         rewrite ^/minio/(.*) /$1 break;
-        proxy_pass http://${MINIO_PRIVATE_HOST}:${MINIO_PRIVATE_PORT};
+        proxy_pass http://${MINIO_PRIVATE_HOST_IPV4}:${MINIO_PRIVATE_PORT};
         proxy_set_header Host $http_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -52,14 +52,14 @@ server {
     # --- Minio S3 API ---
     location /minio-api/ {
         rewrite ^/minio-api/(.*) /$1 break;
-        proxy_pass http://${MINIO_API_HOST}:${MINIO_API_PORT};
+        proxy_pass http://${MINIO_API_HOST_IPV4}:${MINIO_API_PORT};
         proxy_set_header Host "${MINIO_API_HOST}:${MINIO_API_PORT}";
         proxy_set_header X-Real-IP $remote_addr;
     }
     
     # --- WebSocket for Real-time Collaboration ---
     location /ws {
-        proxy_pass http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT};
+        proxy_pass http://${APPFLOWY_BACKEND_HOST_IPV4}:${APPFLOWY_BACKEND_PORT};
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
@@ -69,7 +69,7 @@ server {
 
     # --- AppFlowy Cloud Backend (API) ---
     location / {
-        proxy_pass http://${APPFLOWY_BACKEND_HOST}:${APPFLOWY_BACKEND_PORT};
+        proxy_pass http://${APPFLOWY_BACKEND_HOST_IPV4}:${APPFLOWY_BACKEND_PORT};
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

@@ -1,12 +1,17 @@
-    # Use an official Nginx runtime as a parent image
-    FROM nginx:1.21-alpine
+    # Use the official Nginx image from Docker Hub
+    FROM nginx:1.21.6-alpine
     
-    # The `envsubst` command is included in the gettext package.
-    RUN apk update && apk add gettext
+    # Add bind-tools so we can use `dig` in the start script to force IPv4 resolution
+    RUN apk add --no-cache bind-tools
     
-    # Copy the Nginx config template and the startup script
+    # Remove the default Nginx configuration
+    RUN rm /etc/nginx/conf.d/default.conf
+    
+    # Copy the new configuration template and the start script
     COPY default.conf.template /etc/nginx/conf.d/default.conf.template
     COPY start.sh /start.sh
+    
+    # Make the start script executable
     RUN chmod +x /start.sh
     
     # Expose port and set the startup command
