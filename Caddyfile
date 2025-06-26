@@ -9,9 +9,14 @@
 :{$PORT} {
 	# --- Manejadores de Proxy ---
 	
-	# UNA ÚNICA REGLA para todo lo relacionado con GoTrue.
-	# Maneja /gotrue/* Y /verify
-	handle_path /gotrue/* /verify {
+	# NUEVA REGLA!
+	# El enlace del correo va a /verify. Le decimos a Caddy
+	# que esto también debe ir al servicio GoTrue.
+	handle_path /verify {
+		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
+	}
+
+	handle_path /gotrue/* {
 		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
 
