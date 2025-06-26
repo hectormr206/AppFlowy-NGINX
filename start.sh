@@ -2,9 +2,10 @@
 
 # This script dynamically finds the IPv4 addresses of the upstream services,
 # substitutes them into the nginx template, and then starts the server.
-# This is a robust workaround for environments with unreliable IPv6 routing.
+# This is a robust workaround for environments with unreliable IPv6 routing
+# and ensures we only use the first returned IP address.
 
-# Function to resolve a hostname to IPv4 with retries.
+# Function to resolve a hostname to a single IPv4 with retries.
 # It only outputs the final IP address.
 resolve_ipv4() {
     local hostname=$1
@@ -14,7 +15,9 @@ resolve_ipv4() {
 
     # This loop will run until an IP is found or it runs out of retries.
     while [ -z "${resolved_ip}" ] && [ ${count} -lt ${retries} ]; do
-        resolved_ip=$(dig +short A ${hostname})
+        # We pipe to `head -n 1` to ensure we only get ONE IP address,
+        # even if DNS returns multiple for load balancing.
+        resolved_ip=$(dig +short A ${hostname} | head -n 1)
         if [ -z "${resolved_ip}" ]; then
             count=$((count+1))
             # Wait 2 seconds before retrying.
