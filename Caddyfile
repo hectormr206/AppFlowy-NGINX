@@ -10,25 +10,45 @@
 	# --- GoTrue (Autenticación) ---
 	# Todas las peticiones a /gotrue/* se envían al servicio GoTrue.
 	handle_path /gotrue/* {
-		reverse_proxy {$GOTRUE_BACKEND_HOST}:{$GOTRUE_BACKEND_PORT}
+		reverse_proxy {$GOTRUE_BACKEND_HOST}:{$GOTRUE_BACKEND_PORT} {
+			transport http {
+				# Forzamos la conexión a usar IPv4 para evitar problemas de red.
+				dial_network tcp4
+			}
+		}
 	}
 
 	# --- Minio (Almacenamiento S3) ---
 	# Todas las peticiones a /minio-api/* se envían al servicio Minio.
 	handle_path /minio-api/* {
-		reverse_proxy {$MINIO_API_HOST}:{$MINIO_API_PORT}
+		reverse_proxy {$MINIO_API_HOST}:{$MINIO_API_PORT} {
+			transport http {
+				# Forzamos la conexión a usar IPv4.
+				dial_network tcp4
+			}
+		}
 	}
 
 	# --- AppFlowy (WebSocket para colaboración en tiempo real) ---
 	handle_path /ws {
-		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
+		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT} {
+			transport http {
+				# Forzamos la conexión a usar IPv4.
+				dial_network tcp4
+			}
+		}
 	}
 
 	# --- AppFlowy (Backend principal - por defecto) ---
 	# Todas las demás peticiones se envían al backend principal de AppFlowy.
 	# Este debe ser el último manejador "handle".
 	handle {
-		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT}
+		reverse_proxy {$APPFLOWY_BACKEND_HOST}:{$APPFLOWY_BACKEND_PORT} {
+			transport http {
+				# Forzamos la conexión a usar IPv4.
+				dial_network tcp4
+			}
+		}
 	}
 
 	# --- Cabeceras Globales (CORS) ---
