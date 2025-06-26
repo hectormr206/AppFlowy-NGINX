@@ -7,12 +7,11 @@
 # La variable PORT la define Railway (la hemos puesto en 80).
 # Si no, Caddy escucharía en el 443 por defecto.
 :{$PORT} {
-	# --- Manejadores de Proxy (usando variables oficiales) ---
-	handle_path /verify {
-		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
-	}
-
-	handle_path /gotrue/* {
+	# --- Manejadores de Proxy ---
+	
+	# UNA ÚNICA REGLA para todo lo relacionado con GoTrue.
+	# Maneja /gotrue/* Y /verify
+	handle_path /gotrue/* /verify {
 		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
 	}
 
@@ -28,8 +27,7 @@
 		reverse_proxy {$ENV_APPFLOWY_CLOUD}:{$ENV_APPFLOWY_CLOUD_PORT}
 	}
 
-	# --- Cabeceras Globales de CORS (Completas y Robustas) ---
-	# Caddy es ahora el ÚNICO responsable de esto.
+	# --- Cabeceras Globales de CORS ---
 	header {
 		Access-Control-Allow-Origin "{$ENV_WEB_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
