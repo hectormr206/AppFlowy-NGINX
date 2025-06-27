@@ -11,13 +11,21 @@
 
 	# REGLA 1: Manejar la ruta de verificación.
 	handle /verify {
-		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
+		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT} {
+			header_up X-Forwarded-Proto "https"
+			header_up X-Forwarded-Host "{host}"
+			header_up X-Real-IP "{remote}"
+		}
 	}
 
 	# REGLA 2: Manejar la API de GoTrue.
 	handle /gotrue/* {
 		uri strip_prefix /gotrue
-		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT}
+		reverse_proxy {$ENV_GOTRUE}:{$ENV_GOTRUE_PORT} {
+			header_up X-Forwarded-Proto "https"
+			header_up X-Forwarded-Host "{host}"
+			header_up X-Real-IP "{remote}"
+		}
 	}
 
 	# REGLA 3: Manejar la API de Minio.
@@ -40,7 +48,7 @@
 	# Se aplican a todas las respuestas manejadas.
 	header {
 		X-Forwarded-Proto "https"
-    X-Forwarded-Port "443"
+		X-Forwarded-Port "443"
 		Access-Control-Allow-Origin "{$ENV_WEB_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "*"
