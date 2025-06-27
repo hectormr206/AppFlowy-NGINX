@@ -39,6 +39,8 @@
 	# --- Cabeceras Globales de CORS ---
 	# Se aplican a todas las respuestas manejadas.
 	header {
+		X-Forwarded-Proto "https"
+    X-Forwarded-Port "443"
 		Access-Control-Allow-Origin "{$ENV_WEB_ORIGIN}"
 		Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 		Access-Control-Allow-Headers "*"
