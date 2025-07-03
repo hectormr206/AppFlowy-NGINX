@@ -1,0 +1,59 @@
+    # nginx.conf.template
+    server {
+        # Railway nos da el puerto a través de una variable, Nginx escuchará ahí.
+        listen ${PORT};
+        server_name _;
+
+        # --- Manejo Centralizado de CORS ---
+        # Responde a las peticiones 'preflight' y añade cabeceras a todas las respuestas.
+        # Esto soluciona el error de CORS de forma definitiva.
+        location / {
+            # Si es una petición OPTIONS (preflight), respondemos con los permisos.
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}';
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
+                add_header 'Access-Control-Allow-Headers' '*';
+                add_header 'Access-Control-Allow-Credentials' 'true';
+                add_header 'Access-Control-Max-Age' 86400;
+                add_header 'Content-Type' 'text/plain charset=UTF-8';
+                add_header 'Content-Length' 0;
+                return 204;
+            }
+
+            # Para todas las demás peticiones, también añadimos las cabeceras de origen.
+            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            
+            # --- Enrutamiento del Proxy ---
+            # Ahora definimos a dónde va cada petición.
+
+            # Peticiones a /gotrue/... van al servicio de autenticación.
+            if ($request_uri ~ ^/gotrue/) {
+                proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+            }
+
+            # Peticiones a /minio-api/... van al servicio de almacenamiento.
+            if ($request_uri ~ ^/minio-api/) {
+                proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
+            }
+            
+            # Peticiones a /ws/... van a los websockets del backend.
+            if ($request_uri ~ ^/ws/) {
+                proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "Upgrade";
+            }
+            
+            # Cualquier otra petición va al backend principal.
+            if ($request_uri !~ ^/(gotrue|minio-api|ws)/) {
+                proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            }
+
+            # Cabeceras estándar para el proxy.
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }

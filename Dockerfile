@@ -1,5 +1,5 @@
-# Usamos la imagen oficial de Caddy, es ligera y segura.
-FROM caddy:2-alpine
+    # Usamos la imagen oficial de Nginx
+    FROM nginx:latest
 
-# Copiamos nuestro archivo de configuración al lugar correcto dentro del contenedor.
-COPY Caddyfile /etc/caddy/Caddyfile
+    # Copiamos nuestra configuración plantilla al lugar correcto dentro de la imagen
+    COPY nginx.conf.template /etc/nginx/templates/default.conf.template
