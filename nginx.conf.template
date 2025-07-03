@@ -1,59 +1,57 @@
-    # nginx.conf.template
+    # nginx.conf.template - Corregido para usar 'location' blocks
     server {
-        # Railway nos da el puerto a través de una variable, Nginx escuchará ahí.
+        # Nginx escuchará en el puerto que Railway le asigne.
         listen ${PORT};
         server_name _;
 
-        # --- Manejo Centralizado de CORS ---
-        # Responde a las peticiones 'preflight' y añade cabeceras a todas las respuestas.
-        # Esto soluciona el error de CORS de forma definitiva.
-        location / {
-            # Si es una petición OPTIONS (preflight), respondemos con los permisos.
-            if ($request_method = 'OPTIONS') {
-                add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}';
-                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS';
-                add_header 'Access-Control-Allow-Headers' '*';
-                add_header 'Access-Control-Allow-Credentials' 'true';
-                add_header 'Access-Control-Max-Age' 86400;
-                add_header 'Content-Type' 'text/plain charset=UTF-8';
-                add_header 'Content-Length' 0;
-                return 204;
-            }
+        # --- Manejo de CORS ---
+        # Añadimos las cabeceras de CORS a todas las respuestas.
+        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
 
-            # Para todas las demás peticiones, también añadimos las cabeceras de origen.
-            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            
-            # --- Enrutamiento del Proxy ---
-            # Ahora definimos a dónde va cada petición.
+        # Si la petición es un 'preflight' de CORS (método OPTIONS),
+        # respondemos inmediatamente con "OK" y no procesamos más.
+        if ($request_method = 'OPTIONS') {
+            return 204;
+        }
 
-            # Peticiones a /gotrue/... van al servicio de autenticación.
-            if ($request_uri ~ ^/gotrue/) {
-                proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
-            }
+        # --- Enrutamiento del Proxy con 'location' ---
+        # Cada servicio tiene su propio bloque 'location' para evitar conflictos.
 
-            # Peticiones a /minio-api/... van al servicio de almacenamiento.
-            if ($request_uri ~ ^/minio-api/) {
-                proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
-            }
-            
-            # Peticiones a /ws/... van a los websockets del backend.
-            if ($request_uri ~ ^/ws/) {
-                proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-                proxy_http_version 1.1;
-                proxy_set_header Upgrade $http_upgrade;
-                proxy_set_header Connection "Upgrade";
-            }
-            
-            # Cualquier otra petición va al backend principal.
-            if ($request_uri !~ ^/(gotrue|minio-api|ws)/) {
-                proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-            }
-
-            # Cabeceras estándar para el proxy.
+        # Regla 1: WebSockets para colaboración en tiempo real.
+        location /ws/ {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            # Estas directivas ahora están en un lugar válido.
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        # Regla 2: Autenticación con GoTrue.
+        location /gotrue/ {
+            # Reescribimos la URL para quitar el prefijo /gotrue.
+            # Ejemplo: /gotrue/magiclink -> /magiclink
+            rewrite ^/gotrue/(.*)$ /$1 break;
+            proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        # Regla 3: Almacenamiento de archivos con MinIO.
+        location /minio-api/ {
+            proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+        
+        # Regla 4: Backend principal (regla general para todo lo demás).
+        location / {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
         }
     }
