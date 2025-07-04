@@ -1,57 +1,63 @@
-    # nginx.conf.template - Corregido para usar 'location' blocks
-    server {
-        # Nginx escuchará en el puerto que Railway le asigne.
-        listen ${PORT};
-        server_name _;
+# nginx.conf.template - Versión Final Corregida
 
-        # --- Manejo de CORS ---
-        # Añadimos las cabeceras de CORS a todas las respuestas.
-        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-        add_header 'Access-Control-Allow-Credentials' 'true' always;
-        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-        add_header 'Access-Control-Allow-Headers' '*' always;
+server {
+    # Nginx escuchará en el puerto que Railway le asigne.
+    listen ${PORT};
+    server_name _;
+    underscores_in_headers on;
 
-        # Si la petición es un 'preflight' de CORS (método OPTIONS),
-        # respondemos inmediatamente con "OK" y no procesamos más.
-        if ($request_method = 'OPTIONS') {
-            return 204;
-        }
+    # --- Manejo de CORS ---
+    # Esto es crucial para permitir que tu frontend hable con los backends.
+    # Se aplica a TODAS las respuestas.
+    add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+    add_header 'Access-Control-Allow-Credentials' 'true' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' '*' always;
 
-        # --- Enrutamiento del Proxy con 'location' ---
-        # Cada servicio tiene su propio bloque 'location' para evitar conflictos.
-
-        # Regla 1: WebSockets para colaboración en tiempo real.
-        location /ws/ {
-            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-            # Estas directivas ahora están en un lugar válido.
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "Upgrade";
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
-
-        # Regla 2: Autenticación con GoTrue.
-        location /gotrue/ {
-            # Reescribimos la URL para quitar el prefijo /gotrue.
-            # Ejemplo: /gotrue/magiclink -> /magiclink
-            rewrite ^/gotrue/(.*)$ /$1 break;
-            proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
-
-        # Regla 3: Almacenamiento de archivos con MinIO.
-        location /minio-api/ {
-            proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
-        
-        # Regla 4: Backend principal (regla general para todo lo demás).
-        location / {
-            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-        }
+    # Si la petición es un 'preflight' de CORS (método OPTIONS),
+    # respondemos inmediatamente con "OK" y no procesamos más.
+    if ($request_method = 'OPTIONS') {
+        return 204;
     }
+
+    # --- ENRUTAMIENTO DE SERVICIOS ---
+
+    # Regla 1: WebSockets para colaboración en tiempo real.
+    location /ws/ {
+        proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+    }
+
+    # Regla 2: Autenticación con GoTrue.
+    location /gotrue/ {
+        rewrite ^/gotrue/(.*)$ /$1 break;
+        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+        proxy_set_header Host $host;
+        proxy_pass_request_headers on;
+    }
+
+    # Regla 3: API de almacenamiento de archivos con MinIO.
+    # La cabecera Host es especial aquí, como en el archivo oficial.
+    location /minio-api/ {
+        rewrite ^/minio-api/(.*)$ /$1 break;
+        proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
+        proxy_set_header Host ${ENV_MINIO}; # Usa el nombre interno del servicio, no el host público.
+    }
+    
+    # Regla 4: API del backend principal de AppFlowy.
+    # ¡ESTA ES LA REGLA CLAVE QUE FALTABA!
+    location /api/ {
+        proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+        proxy_set_header Host $host;
+    }
+
+    # Regla 5: Servir el frontend de AppFlowy-Web (la regla por defecto).
+    # ¡ESTA ES LA REGLA CLAVE CORREGIDA!
+    location / {
+        proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
+        proxy_set_header Host $host;
+    }
+}
