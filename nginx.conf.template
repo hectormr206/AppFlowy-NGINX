@@ -1,36 +1,11 @@
-# nginx.conf.template - Versión de Depuración de CORS
+# nginx.conf.template - Versión Final Limpia
 
 server {
     listen ${PORT};
     server_name _;
     underscores_in_headers on;
 
-    # --- ENRUTAMIENTO DE SERVICIOS ---
-
-    # Regla para GoTrue, con una configuración de CORS simple para depurar.
-    location /gotrue/ {
-        # Si es una petición de prueba (OPTIONS), permitimos todo.
-        if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '*' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' '*' always;
-            add_header 'Content-Length' 0;
-            return 204;
-        }
-
-        # Para las peticiones reales, también seremos permisivos.
-        add_header 'Access-Control-Allow-Origin' '*' always;
-        add_header 'Access-Control-Allow-Credentials' 'true' always;
-
-        # Lógica del proxy (sin cambios).
-        rewrite ^/gotrue/(.*)$ $1 break;
-        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
-        proxy_set_header Host $http_host;
-        proxy_pass_request_headers on;
-    }
-    
-    # --- OTRAS REGLAS (SIN CAMBIOS) ---
+    # --- ENRUTAMIENTO DE SERVICIOS (Simple y Directo) ---
 
     location /ws/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
@@ -40,6 +15,13 @@ server {
         proxy_set_header Host $host;
     }
 
+    location /gotrue/ {
+        rewrite ^/gotrue/(.*)$ /$1 break;
+        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+        proxy_set_header Host $http_host;
+        proxy_pass_request_headers on;
+    }
+    
     location /api/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
         proxy_set_header Host $http_host;
