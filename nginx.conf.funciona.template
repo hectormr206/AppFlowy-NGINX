@@ -1,4 +1,4 @@
-# nginx.conf.template - Tu configuración funcional con la corrección para GoTrue
+# nginx.conf.template - Versión Limpia y Final
 
 # El servidor principal que procesará todas las peticiones.
 server {
@@ -6,6 +6,20 @@ server {
     listen ${PORT};
     server_name _;
     underscores_in_headers on;
+
+    # --- Manejo de CORS ---
+    # Esto sigue siendo necesario para que el navegador permita la comunicación.
+    add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+    add_header 'Access-Control-Allow-Credentials' 'true' always;
+    add_header 'Access-Control-Allow-Headers' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Max-Age' 3600 always;
+    add_header 'Content-Type' 'text/plain charset=UTF-8' always;
+
+    # Si es un preflight de CORS, respondemos "OK" y terminamos.
+    if ($request_method = 'OPTIONS') {
+        return 204;
+    }
 
     # --- ENRUTAMIENTO DE SERVICIOS (Simple y Directo) ---
 
@@ -17,34 +31,12 @@ server {
         proxy_set_header Host $host;
     }
 
-    # =================================================================
-    # INICIO DE LA MODIFICACIÓN: SÓLO ESTE BLOQUE CAMBIA
-    # =================================================================
     location /gotrue/ {
-        # Responde a las peticiones preflight (OPTIONS) explícitamente para esta ruta.
-        if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' '*' always;
-            add_header 'Content-Length' 0;
-            return 204;
-        }
-
-        # Añade las cabeceras CORS a las respuestas REALES (GET, POST).
-        # Esto FUERZA a que la cabecera se añada, incluso si GoTrue envía la suya.
-        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-        add_header 'Access-Control-Allow-Credentials' 'true' always;
-
-        # Lógica del proxy (sin cambios).
         rewrite ^/gotrue/(.*)$ /$1 break;
         proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
         proxy_set_header Host $host;
         proxy_pass_request_headers on;
     }
-    # =================================================================
-    # FIN DE LA MODIFICACIÓN
-    # =================================================================
 
     location /minio-api/ {
         rewrite ^/minio-api/(.*)$ /$1 break;
