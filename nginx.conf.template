@@ -1,26 +1,13 @@
-# nginx.conf.template - Versión Limpia y Final
+# nginx.conf.template - Versión Final y Robusta
 
-# El servidor principal que procesará todas las peticiones.
 server {
-    # Nginx escuchará en el puerto que Railway le asigne.
     listen ${PORT};
     server_name _;
     underscores_in_headers on;
 
-    # --- Manejo de CORS ---
-    # Esto sigue siendo necesario para que el navegador permita la comunicación.
-    add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-    add_header 'Access-Control-Allow-Credentials' 'true' always;
-    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-    add_header 'Access-Control-Allow-Headers' '*' always;
+    # --- ENRUTAMIENTO DE SERVICIOS ---
 
-    # Si es un preflight de CORS, respondemos "OK" y terminamos.
-    if ($request_method = 'OPTIONS') {
-        return 204;
-    }
-
-    # --- ENRUTAMIENTO DE SERVICIOS (Simple y Directo) ---
-
+    # Regla para WebSockets. No necesita CORS.
     location /ws/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
         proxy_http_version 1.1;
@@ -29,24 +16,47 @@ server {
         proxy_set_header Host $host;
     }
 
+    # Regla para GoTrue, con su propio manejo de CORS explícito.
     location /gotrue/ {
+        # Responde a las peticiones preflight de CORS (OPTIONS).
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' '*' always;
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        # Añade las cabeceras CORS a las respuestas REALES (GET, POST, etc).
+        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+
+        # Lógica del proxy.
         rewrite ^/gotrue/(.*)$ /$1 break;
         proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
         proxy_set_header Host $host;
         proxy_pass_request_headers on;
     }
-
-    location /minio-api/ {
-        rewrite ^/minio-api/(.*)$ /$1 break;
-        proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
-        proxy_set_header Host ${ENV_MINIO};
-    }
     
+    # Regla para el backend principal, con su propio manejo de CORS.
     location /api/ {
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' '*' always;
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
         proxy_set_header Host $host;
     }
 
+    # Regla para el frontend. No necesita cabeceras CORS de respuesta.
     location / {
         proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
         proxy_set_header Host $host;
