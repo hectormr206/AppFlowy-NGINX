@@ -1,11 +1,11 @@
-# nginx.conf.template - Versión Final Limpia
+# nginx.conf.template - Versión Final Simplificada (Cada servicio maneja su propio CORS)
 
 server {
     listen ${PORT};
     server_name _;
     underscores_in_headers on;
 
-    # --- ENRUTAMIENTO DE SERVICIOS (Simple y Directo) ---
+    # --- ENRUTAMIENTO DE SERVICIOS (SIN LÓGICA DE CORS) ---
 
     location /ws/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
@@ -15,18 +15,21 @@ server {
         proxy_set_header Host $host;
     }
 
+    # Proxy simple para GoTrue. Sin cabeceras de CORS.
     location /gotrue/ {
         rewrite ^/gotrue/(.*)$ /$1 break;
         proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
-        proxy_set_header Host $http_host;
+        proxy_set_header Host $host;
         proxy_pass_request_headers on;
     }
     
+    # Proxy simple para la API principal. AppFlowy-Cloud no necesita CORS.
     location /api/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-        proxy_set_header Host $http_host;
+        proxy_set_header Host $host;
     }
 
+    # Proxy simple para el frontend.
     location / {
         proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
         proxy_set_header Host $host;
