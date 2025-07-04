@@ -26,7 +26,7 @@ server {
 
         # Allow headers like redirect_to to be handed over to the gotrue
         # for correct redirecting
-        proxy_set_header Host $http_host;
+        proxy_set_header Host $host;
         proxy_pass_request_headers on;
     }
 
@@ -44,7 +44,7 @@ server {
     location /api/ {
       proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
       proxy_set_header X-Request-Id $request_id;
-      proxy_set_header Host $http_host;
+      proxy_set_header Host $host;
 
       # Set CORS headers for other requests
       if ($request_method = 'OPTIONS') {
@@ -98,7 +98,7 @@ server {
 
           # Set headers
           proxy_set_header X-Request-Id $request_id;
-          proxy_set_header Host $http_host;
+          proxy_set_header Host $host;
 
           # Handle CORS
           add_header 'Access-Control-Allow-Origin' ${ENV_WEB_ORIGIN} always;
@@ -127,7 +127,7 @@ server {
         proxy_pass http://${ENV_MINIO}:${ENV_MINIO_UI_PORT};
 
         rewrite ^/minio/(.*) /$1 break;
-        proxy_set_header Host $http_host;
+        proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
