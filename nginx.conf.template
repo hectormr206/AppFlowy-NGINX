@@ -20,7 +20,7 @@ server {
             return 204;
         }
 
-        proxy_pass $gotrue_backend;
+        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
 
         rewrite ^/gotrue(/.*)$ $1 break;
 
