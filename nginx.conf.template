@@ -1,4 +1,12 @@
-# nginx.conf.template - Versión Final y Robusta
+# nginx.conf.template - Adaptación Fiel de la Configuración Oficial de AppFlowy
+
+# La directiva MAP, adaptada para usar nuestra variable de entorno.
+# Esta es la pieza clave para un manejo de CORS seguro.
+map $http_origin $cors_origin {
+    default "null";
+    # Si el origen de la petición es nuestro frontend web, lo permitimos.
+    ~^${ENV_WEB_ORIGIN}$ $http_origin;
+}
 
 server {
     listen ${PORT};
@@ -7,7 +15,31 @@ server {
 
     # --- ENRUTAMIENTO DE SERVICIOS ---
 
-    # Regla para WebSockets. No necesita CORS.
+    # Regla para GoTrue, con manejo de CORS como en el archivo oficial.
+    location /gotrue/ {
+        # Responde a las peticiones preflight (OPTIONS).
+        if ($request_method = 'OPTIONS') {
+            # Devuelve el origen permitido SÓLO si coincide (gracias al map).
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Credentials' 'true' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+            # Permite dinámicamente cualquier cabecera que el cliente solicite.
+            add_header 'Access-Control-Allow-Headers' $http_access_control_request_headers always;
+            add_header 'Access-Control-Max-Age' 3600 always;
+            return 204;
+        }
+
+        # Añade cabeceras CORS a las respuestas reales (GET, POST).
+        add_header 'Access-Control-Allow-Origin' $cors_origin always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+
+        rewrite ^/gotrue/(.*)$ $1 break;
+        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+        proxy_set_header Host $http_host;
+        proxy_pass_request_headers on;
+    }
+    
+    # Reglas para WebSockets y la API principal (no necesitan CORS explícito aquí).
     location /ws/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
         proxy_http_version 1.1;
@@ -16,47 +48,12 @@ server {
         proxy_set_header Host $host;
     }
 
-    # Regla para GoTrue, con su propio manejo de CORS explícito.
-    location /gotrue/ {
-        # Responde a las peticiones preflight de CORS (OPTIONS).
-        if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' '*' always;
-            add_header 'Content-Length' 0;
-            return 204;
-        }
-
-        # Añade las cabeceras CORS a las respuestas REALES (GET, POST, etc).
-        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-        add_header 'Access-Control-Allow-Credentials' 'true' always;
-
-        # Lógica del proxy.
-        rewrite ^/gotrue/(.*)$ /$1 break;
-        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
-        proxy_set_header Host $host;
-        proxy_pass_request_headers on;
-    }
-    
-    # Regla para el backend principal, con su propio manejo de CORS.
     location /api/ {
-        if ($request_method = 'OPTIONS') {
-            add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-            add_header 'Access-Control-Allow-Credentials' 'true' always;
-            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-            add_header 'Access-Control-Allow-Headers' '*' always;
-            add_header 'Content-Length' 0;
-            return 204;
-        }
-        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-        add_header 'Access-Control-Allow-Credentials' 'true' always;
-
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-        proxy_set_header Host $host;
+        proxy_set_header Host $http_host;
     }
 
-    # Regla para el frontend. No necesita cabeceras CORS de respuesta.
+    # Regla para el frontend, que es el punto de entrada por defecto.
     location / {
         proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
         proxy_set_header Host $host;
