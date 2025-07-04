@@ -1,12 +1,4 @@
-# nginx.conf.template - Adaptación Fiel de la Configuración Oficial de AppFlowy
-
-# La directiva MAP, adaptada para usar nuestra variable de entorno.
-# Esta es la pieza clave para un manejo de CORS seguro.
-map $http_origin $cors_origin {
-    default "null";
-    # Si el origen de la petición es nuestro frontend web, lo permitimos.
-    ~^${ENV_WEB_ORIGIN}$ $http_origin;
-}
+# nginx.conf.template - Versión de Depuración de CORS
 
 server {
     listen ${PORT};
@@ -15,31 +7,31 @@ server {
 
     # --- ENRUTAMIENTO DE SERVICIOS ---
 
-    # Regla para GoTrue, con manejo de CORS como en el archivo oficial.
+    # Regla para GoTrue, con una configuración de CORS simple para depurar.
     location /gotrue/ {
-        # Responde a las peticiones preflight (OPTIONS).
+        # Si es una petición de prueba (OPTIONS), permitimos todo.
         if ($request_method = 'OPTIONS') {
-            # Devuelve el origen permitido SÓLO si coincide (gracias al map).
-            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
             add_header 'Access-Control-Allow-Credentials' 'true' always;
             add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
-            # Permite dinámicamente cualquier cabecera que el cliente solicite.
-            add_header 'Access-Control-Allow-Headers' $http_access_control_request_headers always;
-            add_header 'Access-Control-Max-Age' 3600 always;
+            add_header 'Access-Control-Allow-Headers' '*' always;
+            add_header 'Content-Length' 0;
             return 204;
         }
 
-        # Añade cabeceras CORS a las respuestas reales (GET, POST).
-        add_header 'Access-Control-Allow-Origin' $cors_origin always;
+        # Para las peticiones reales, también seremos permisivos.
+        add_header 'Access-Control-Allow-Origin' '*' always;
         add_header 'Access-Control-Allow-Credentials' 'true' always;
 
+        # Lógica del proxy (sin cambios).
         rewrite ^/gotrue/(.*)$ $1 break;
         proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
         proxy_set_header Host $http_host;
         proxy_pass_request_headers on;
     }
     
-    # Reglas para WebSockets y la API principal (no necesitan CORS explícito aquí).
+    # --- OTRAS REGLAS (SIN CAMBIOS) ---
+
     location /ws/ {
         proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
         proxy_http_version 1.1;
@@ -53,7 +45,6 @@ server {
         proxy_set_header Host $http_host;
     }
 
-    # Regla para el frontend, que es el punto de entrada por defecto.
     location / {
         proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
         proxy_set_header Host $host;
