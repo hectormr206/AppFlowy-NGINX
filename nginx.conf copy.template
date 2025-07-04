@@ -1,0 +1,134 @@
+# nginx.conf.template - Versión Limpia y Final
+
+# El servidor principal que procesará todas las peticiones.
+server {
+    # Nginx escuchará en el puerto que Railway le asigne.
+    listen ${PORT};
+    server_name _;
+    underscores_in_headers on;
+    client_max_body_size 10M;
+
+    # --- Manejo de CORS ---
+    # Esto sigue siendo necesario para que el navegador permita la comunicación.
+    add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+    add_header 'Access-Control-Allow-Credentials' 'true' always;
+    add_header 'Access-Control-Allow-Headers' '*' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Max-Age' 3600 always;
+    add_header 'Content-Type' 'text/plain charset=UTF-8' always;
+    add_header 'Content-Length' 0 always;
+
+    # Si es un preflight de CORS, respondemos "OK" y terminamos.
+    if ($request_method = 'OPTIONS') {
+        return 204;
+    }
+
+    # --- ENRUTAMIENTO DE SERVICIOS (Simple y Directo) ---
+
+    location /ws/ {
+        proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400s;
+    }
+
+    location /gotrue/ {
+        rewrite ^/gotrue/(.*)$ /$1 break;
+        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+        proxy_set_header Host $host;
+        proxy_pass_request_headers on;
+    }
+
+    # Minio Web UI (interfaz de usuario)
+    location /minio/ {
+        rewrite ^/minio/(.*) /$1 break;
+        # Nota: Asumo una nueva variable ENV_MINIO_UI_PORT (ej: 9001) para la UI de Minio.
+        proxy_pass http://${ENV_MINIO}:${ENV_MINIO_UI_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        chunked_transfer_encoding off;
+    }
+
+    # Minio API (para URLs pre-firmadas, mejorada)
+    location /minio-api/ {
+        rewrite ^/minio-api/(.*)$ /$1 break;
+        proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
+        # El Host debe ser el host interno que usa Minio para firmar las URLs.
+        proxy_set_header Host ${ENV_MINIO}:${ENV_MINIO_PORT};
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        chunked_transfer_encoding off;
+    }
+
+    # API principal con sub-rutas específicas
+    location /api/ {
+        # Regla general para /api/ (debe ir primero)
+        proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+        proxy_set_header Host $host;
+
+        # Sub-ruta para importación de archivos grandes
+        location /api/import {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            proxy_set_header Host $host;
+            proxy_read_timeout 600s;
+            proxy_connect_timeout 600s;
+            proxy_send_timeout 600s;
+            proxy_request_buffering off;
+            proxy_buffering off;
+            client_max_body_size 2G;
+        }
+
+        # Sub-ruta para el chat (streaming)
+        location /api/chat {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            proxy_set_header Host $host;
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            chunked_transfer_encoding on;
+            proxy_buffering off;
+            proxy_cache off;
+            proxy_read_timeout 600s;
+        }
+
+        # Sub-ruta para publicación
+        location ~* ^/api/workspace/([a-zA-Z0-9_-]+)/publish$ {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            proxy_set_header Host $host;
+            proxy_request_buffering off;
+            client_max_body_size 256M;
+        }
+    }
+
+    # PgAdmin
+    # location /pgadmin/ {
+        # Nota: Asumo nuevas variables para pgAdmin.
+        # proxy_pass http://${ENV_PGADMIN_HOST}:${ENV_PGADMIN_PORT};
+        # proxy_set_header X-Script-Name /pgadmin;
+        # proxy_set_header X-Scheme $scheme;
+        # proxy_set_header Host $host;
+        # proxy_redirect off;
+    # }
+
+    # Consola de Administración
+    location /console {
+        # Nota: Asumo nuevas variables para la consola de admin.
+        proxy_pass http://${ENV_ADMIN_FRONTEND_HOST}:${ENV_ADMIN_FRONTEND_PORT};
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header Host $host;
+    }
+
+    location / {
+        proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
+        proxy_set_header Host $host;
+    }
+}
