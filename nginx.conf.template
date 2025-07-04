@@ -1,63 +1,60 @@
-# nginx.conf.template - Versión Final Corregida
+# nginx.conf.template - Versión Final Definitiva con Forzado de IPv4
 
-server {
-    # Nginx escuchará en el puerto que Railway le asigne.
-    listen ${PORT};
-    server_name _;
-    underscores_in_headers on;
+# Nivel de eventos, estándar.
+events {
+    worker_connections 1024;
+}
 
-    # --- Manejo de CORS ---
-    # Esto es crucial para permitir que tu frontend hable con los backends.
-    # Se aplica a TODAS las respuestas.
-    add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
-    add_header 'Access-Control-Allow-Credentials' 'true' always;
-    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
-    add_header 'Access-Control-Allow-Headers' '*' always;
+# Nivel HTTP, aquí está la magia.
+http {
+    # El resolvedor de DNS de Docker. Le decimos que NO use IPv6.
+    # Esta es la línea más importante de toda la configuración.
+    resolver 127.0.0.11 ipv6=off;
 
-    # Si la petición es un 'preflight' de CORS (método OPTIONS),
-    # respondemos inmediatamente con "OK" y no procesamos más.
-    if ($request_method = 'OPTIONS') {
-        return 204;
-    }
+    # El servidor principal, como lo teníamos antes.
+    server {
+        listen ${PORT};
+        server_name _;
+        underscores_in_headers on;
 
-    # --- ENRUTAMIENTO DE SERVICIOS ---
+        add_header 'Access-Control-Allow-Origin' '${ENV_WEB_ORIGIN}' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, PATCH, DELETE, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' '*' always;
 
-    # Regla 1: WebSockets para colaboración en tiempo real.
-    location /ws/ {
-        proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
-        proxy_set_header Host $host;
-    }
+        if ($request_method = 'OPTIONS') {
+            return 204;
+        }
 
-    # Regla 2: Autenticación con GoTrue.
-    location /gotrue/ {
-        rewrite ^/gotrue/(.*)$ /$1 break;
-        proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
-        proxy_set_header Host $host;
-        proxy_pass_request_headers on;
-    }
+        location /ws/ {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_set_header Host $host;
+        }
 
-    # Regla 3: API de almacenamiento de archivos con MinIO.
-    # La cabecera Host es especial aquí, como en el archivo oficial.
-    location /minio-api/ {
-        rewrite ^/minio-api/(.*)$ /$1 break;
-        proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
-        proxy_set_header Host ${ENV_MINIO}; # Usa el nombre interno del servicio, no el host público.
-    }
-    
-    # Regla 4: API del backend principal de AppFlowy.
-    # ¡ESTA ES LA REGLA CLAVE QUE FALTABA!
-    location /api/ {
-        proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
-        proxy_set_header Host $host;
-    }
+        location /gotrue/ {
+            rewrite ^/gotrue/(.*)$ /$1 break;
+            proxy_pass http://${ENV_GOTRUE}:${ENV_GOTRUE_PORT};
+            proxy_set_header Host $host;
+            proxy_pass_request_headers on;
+        }
 
-    # Regla 5: Servir el frontend de AppFlowy-Web (la regla por defecto).
-    # ¡ESTA ES LA REGLA CLAVE CORREGIDA!
-    location / {
-        proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
-        proxy_set_header Host $host;
+        location /minio-api/ {
+            rewrite ^/minio-api/(.*)$ /$1 break;
+            proxy_pass http://${ENV_MINIO}:${ENV_MINIO_PORT};
+            proxy_set_header Host ${ENV_MINIO};
+        }
+        
+        location /api/ {
+            proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
+            proxy_set_header Host $host;
+        }
+
+        location / {
+            proxy_pass http://${ENV_APPFLOWY_WEB}:${ENV_APPFLOWY_WEB_PORT};
+            proxy_set_header Host $host;
+        }
     }
 }
