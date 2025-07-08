@@ -81,6 +81,18 @@ server {
 
       # AppFlowy-Cloud
       location /api/chat {
+        # Handle OPTIONS pre-flight request for CORS
+          if ($request_method = 'OPTIONS') {
+              add_header 'Access-Control-Allow-Origin' ${ENV_WEB_ORIGIN} always;
+              add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+              add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Client-Version, Device-Id' always;
+              add_header 'Access-Control-Max-Age' 3600 always;
+              return 204;
+          }
+
+          # Add CORS header for actual requests
+          add_header 'Access-Control-Allow-Origin' ${ENV_WEB_ORIGIN} always;
+
           proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
 
           proxy_http_version 1.1;
