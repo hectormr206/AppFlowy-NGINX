@@ -42,10 +42,10 @@ server {
         proxy_read_timeout 86400s;
     }
 
-    location /api {
+    location /api/ {
       proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
       proxy_set_header X-Request-Id $request_id;
-      proxy_set_header Host $host;
+      proxy_set_header Host $http_host;
 
       # Set CORS headers for other requests
       if ($request_method = 'OPTIONS') {
