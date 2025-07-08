@@ -185,12 +185,20 @@ server {
     # PgAdmin
     # Optional Module, comment this section if you did not deploy pgadmin in docker-compose.yml
     location /pgadmin/ {
-        set $pgadmin pgadmin;
-        proxy_pass http://${ENV_PGADMIN}:${ENV_PGADMIN_PORT};
+        # La barra (/) al final de proxy_pass es el cambio más importante.
+        # Le dice a NGINX que reemplace /pgadmin/ con / en la petición al servicio.
+        proxy_pass http://${ENV_PGADMIN}:${ENV_PGADMIN_PORT}/;
 
+        # Encabezados estándar para un proxy reverso
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Este encabezado es requerido por pgAdmin para generar las URLs correctamente
         proxy_set_header X-Script-Name /pgadmin;
-        proxy_set_header X-Scheme $scheme;
-        proxy_set_header Host $host;
+
+        # Evita que pgAdmin intente hacer redirecciones incorrectas
         proxy_redirect off;
     }
 
