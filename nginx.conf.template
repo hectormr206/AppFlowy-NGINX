@@ -42,7 +42,7 @@ server {
         proxy_read_timeout 86400s;
     }
 
-    location /api/ {
+    location /api {
       proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
       proxy_set_header X-Request-Id $request_id;
       proxy_set_header Host $http_host;
@@ -61,7 +61,7 @@ server {
       add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Client-Version, Device-Id' always;
       add_header 'Access-Control-Max-Age' 3600 always;
 
-      location ~* ^/api/workspace/([a-zA-Z0-9_-]+)/publish$/ {
+      location ~* ^/api/workspace/([a-zA-Z0-9_-]+)/publish$ {
           proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
           proxy_request_buffering off;
           client_max_body_size 256M;
@@ -80,7 +80,7 @@ server {
       }
 
       # AppFlowy-Cloud
-      location /api/chat/ {
+      location /api/chat {
           proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
 
           proxy_http_version 1.1;
@@ -94,7 +94,7 @@ server {
           proxy_send_timeout 600s;
       }
 
-      location /api/import/ {
+      location /api/import {
           proxy_pass http://${ENV_APPFLOWY_CLOUD}:${ENV_APPFLOWY_CLOUD_PORT};
 
           # Set headers
@@ -171,7 +171,7 @@ server {
     }
 
     # Consola de Administración
-    location /console/ {
+    location /console {
         # Nota: Asumo nuevas variables para la consola de admin.
         proxy_pass http://${ENV_ADMIN_FRONTEND_HOST}:${ENV_ADMIN_FRONTEND_PORT};
 
