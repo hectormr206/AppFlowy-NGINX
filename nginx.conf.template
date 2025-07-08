@@ -202,6 +202,20 @@ server {
         proxy_redirect off;
     }
 
+    # RedisInsight Web UI
+    location /redisinsight/ {
+        # La barra al final es importante para que las rutas internas de la UI funcionen
+        proxy_pass http://${ENV_REDISINSIGHT}:${ENV_REDISINSIGHT_PORT}/;
+
+        # Encabezados estándar para un proxy reverso
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Upgrade $http_upgrade;
+    }
+
     # Consola de Administración
     location /console {
         # Nota: Asumo nuevas variables para la consola de admin.
