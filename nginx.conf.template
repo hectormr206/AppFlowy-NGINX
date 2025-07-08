@@ -182,6 +182,18 @@ server {
         chunked_transfer_encoding off;
     }
 
+    # PgAdmin
+    # Optional Module, comment this section if you did not deploy pgadmin in docker-compose.yml
+    location /pgadmin/ {
+        set $pgadmin pgadmin;
+        proxy_pass http://${ENV_PGADMIN}:${ENV_PGADMIN_PORT};
+
+        proxy_set_header X-Script-Name /pgadmin;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header Host $host;
+        proxy_redirect off;
+    }
+
     # Consola de Administración
     location /console {
         # Nota: Asumo nuevas variables para la consola de admin.
